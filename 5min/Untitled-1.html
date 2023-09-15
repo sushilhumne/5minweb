@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+    <title>Face Recognition and Emotion Detection</title>
+</head>
+<body>
+    <header>
+        <h1>Face Recognition and Emotion Detection</h1>
+    </header>
+    <main>
+        <video id="video" autoplay></video>
+        <canvas id="canvas"></canvas>
+        <div id="emotion-result"></div>
+    </main>
+    <script>
+        // Get access to the user's camera
+navigator.mediaDevices
+    .getUserMedia({ video: true })
+    .then((stream) => {
+        const video = document.getElementById("video");
+        video.srcObject = stream;
+
+        // Load face detection and emotion recognition models
+        Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri("/models"),
+            faceapi.nets.faceLandmark68Net.loadFromUri("/models"),
+            faceapi.nets.faceRecognitionNet.loadFromUri("/models"),
+            faceapi.nets.faceExpressionNet.loadFromUri("/models"),
+        ]).then(startFaceRecognition);
+    })
+    .catch((error) => {
+        console.error("Error accessing camera: " + error);
+    });
+
+// Start face recognition and emotion detection
+function startFaceRecognition() {
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const emotionResult = document.getElementById("emotion-result");
+
+    const displaySize = { width: video.width, height: video.height };
+    faceapi.matchDimensions(canvas, displaySize);
+
+    video.addEventListener("play", () => {
+        const canvasContext = canvas.getContext("2d");
+
+        setInterval(async () => {
+            const detections = await faceapi
+                .detectAllFaces(video)
+                .withFaceLandmarks()
+                .withFaceDescriptors()
+                .withFaceExpressions();
+
+            if (detections.length > 0) {
+                const emotions = detections[0].expressions;
+                let maxEmotion = "neutral";
+                let maxProbability = 0;
+
+                for (const emotion in emotions) {
+                    if (emotions[emotion] > maxProbability) {
+                        maxEmotion = emotion;
+                        maxProbability = emotions[emotion];
+                    }
+                }
+
+                emotionResult.innerHTML = `Emotion: ${maxEmotion}`;
+            } else {
+                emotionResult.innerHTML = "No face detected";
+            }
+        }, 100);
+    });
+}
+
+    </script>
+
+</body>
+</html>
